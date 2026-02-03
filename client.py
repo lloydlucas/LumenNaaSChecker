@@ -1,3 +1,13 @@
+import subprocess
+def get_egress_ip():
+	try:
+		result = subprocess.run(['curl', '-s', 'ifconfig.me'], capture_output=True, text=True, check=True)
+		egress_ip = result.stdout.strip()
+		print(f"Egress IP: {egress_ip}")
+		return egress_ip
+	except Exception as e:
+		print(f"Failed to get egress IP: {e}")
+		return None
 
 import os
 from dotenv import load_dotenv
@@ -45,3 +55,4 @@ def get_access_token():
 
 if __name__ == "__main__":
 	get_access_token()
+	egress_ip = get_egress_ip()
