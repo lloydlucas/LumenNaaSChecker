@@ -1,4 +1,12 @@
 import subprocess
+import os
+from dotenv import load_dotenv
+import requests
+import base64
+import time
+
+base_url = "https://api.lumen.com"
+
 def get_egress_ip():
 	try:
 		result = subprocess.run(['curl', '-s', 'ifconfig.me'], capture_output=True, text=True, check=True)
@@ -8,15 +16,6 @@ def get_egress_ip():
 	except Exception as e:
 		print(f"Failed to get egress IP: {e}")
 		return None
-
-import os
-from dotenv import load_dotenv
-import requests
-import base64
-
-base_url = "https://api.lumen.com"
-
-import time
 
 def _update_env_file(updates: dict) -> None:
 	"""Update or append keys in the local .env file.
@@ -138,20 +137,41 @@ def get_valid_access_token(buffer_seconds: int = 60) -> str:
 	return new
 
 
-def get_quote():
-    access_token = get_valid_access_token()
-    url = f"{base_url}/v2/quotes"
-    headers = {
-        'Authorization': f"Bearer {access_token}"
-    }
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        data = response.json()
-        print("Quotes retrieved successfully.")
-        return data
-    else:
-        print(f"Failed to get quotes: {response.status_code} {response.text}")
-        return None
+def set_quote_bandwidth():
+	"""
+	Determine quote bandwidth based on egress IP comparison.
+	
+	Calls get_egress_ip() and compares with LUMEN_IP from .env:
+	- If same: set QUOTE_BANDWIDTH = BANDWIDTH_FULL
+	- If different: set QUOTE_BANDWIDTH = BANDWIDTH_HEARTBEAT
+	
+	Returns the bandwidth value set.
+	"""
+	load_dotenv()
+	
+	egress_ip = get_egress_ip()
+	lumen_ip = os.getenv('LUMEN_IP')
+	
+	if not lumen_ip:
+		raise ValueError("LUMEN_IP must be set in .env file.")
+	
+	if egress_ip == lumen_ip:
+		bandwidth = os.getenv('BANDWIDTH_FULL')
+		source = "BANDWIDTH_FULL"
+	else:
+		bandwidth = os.getenv('BANDWIDTH_HEARTBEAT')
+		source = "BANDWIDTH_HEARTBEAT"
+	
+	if not bandwidth:
+		raise ValueError(f"{source} must be set in .env file.")
+	
+	_update_env_file({'QUOTE_BANDWIDTH': bandwidth})
+	os.environ['QUOTE_BANDWIDTH'] = bandwidth
+	
+	print(f"Egress IP: {egress_ip}, LUMEN_IP: {lumen_ip}")
+	print(f"Match: {egress_ip == lumen_ip}, QUOTE_BANDWIDTH set to: {bandwidth}")
+	
+	return bandwidth
 
 
 def check_inventory(service_id: str = None, page_number: int = 1, page_size: int = 10, naas_enabled: bool = True, entitled: bool = True, service_type: str = "Internet", access_token: str = None):
@@ -161,29 +181,27 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
     Values pulled from .env when not provided:
     - CUSTOMER_NUMBER -> header 'x-customer-number'
     - SERVICE_ID -> used as serviceId query param when service_id not provided
-    - ACCESS_TOKEN -> Bearer token (will attempt to refresh via get_access_token()
-      if missing)
+    - ACCESS_TOKEN -> Bearer token (will auto-refresh if missing)
 
-    Returns parsed JSON on success or raw text on non-JSON responses.
+    Returns parsed JSON response with extracted bandwidth in data['_bandwidth'].
     """
     load_dotenv()
 
     customer_number = os.getenv('CUSTOMER_NUMBER')
-    env_service_id = os.getenv('SERVICE_ID')
-    access_token = access_token or get_valid_access_token()
-
     if not customer_number:
         raise ValueError("CUSTOMER_NUMBER must be set in .env file.")
 
-    service_id = service_id or env_service_id
+    service_id = service_id or os.getenv('SERVICE_ID')
     if not service_id:
         raise ValueError("service_id parameter or SERVICE_ID in .env must be provided.")
 
+    access_token = access_token or get_valid_access_token()
+
+    url = f"{base_url}/ProductInventory/v1/inventory"
     headers = {
         'x-customer-number': customer_number,
         'Authorization': f'Bearer {access_token}'
     }
-
     params = {
         'pageNumber': page_number,
         'pageSize': page_size,
@@ -192,8 +210,6 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
         'serviceType': service_type,
         'serviceId': service_id
     }
-
-    url = f"{base_url}/ProductInventory/v1/inventory"
 
     resp = requests.get(url, headers=headers, params=params)
     try:
@@ -205,41 +221,306 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
     try:
         data = resp.json()
     except ValueError:
-        # Non-JSON response; print raw body
         print(resp.text)
         return resp.text
 
-    # Extract first service from inventory
+    # Extract and persist data from first service inventory
     service_inventory = data.get('serviceInventory', []) if isinstance(data, dict) else []
     if service_inventory:
         svc = service_inventory[0]
-        # Support both 'masterSiteid' and 'masterSiteId' keys
-        master_siteid = None
-        loc = svc.get('location') or {}
-        if isinstance(loc, dict):
-            master_siteid = loc.get('masterSiteid') or loc.get('masterSiteId')
-        if master_siteid:
-            _update_env_file({'MASTER_SITE_ID': master_siteid})
-            os.environ['MASTER_SITE_ID'] = master_siteid
-            print(f"Set MASTER_SITE_ID in .env to '{master_siteid}'")
+        env_updates = {}
 
-        # Find the Bandwidth value
-        bandwidth = None
-        for pc in svc.get('productCharacteristic', []) or []:
-            if pc.get('name') == 'Bandwidth':
-                bandwidth = pc.get('value')
-                break
+        # Extract master site ID (support both key variations)
+        loc = svc.get('location') or {}
+        master_siteid = loc.get('masterSiteid') or loc.get('masterSiteId')
+        if master_siteid:
+            env_updates['MASTER_SITE_ID'] = master_siteid
+
+        # Extract billing account
+        billing = svc.get('billingAccount') or {}
+        if billing.get('id'):
+            env_updates['BILLING_ACCOUNT_ID'] = billing['id']
+        if billing.get('name'):
+            env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
+
+        # Extract bandwidth from product characteristics
+        bandwidth = next(
+            (pc.get('value') for pc in svc.get('productCharacteristic', []) or []
+             if pc.get('name') == 'Bandwidth'),
+            None
+        )
         if bandwidth:
-            print(f"Bandwidth: {bandwidth}")
-        else:
-            print("Bandwidth not found in service characteristics")
-    else:
-        print("No service inventory found in response")
+            print(f"{bandwidth}")
+            env_updates['SERVICE_BANDWIDTH'] = bandwidth
+
+        # Apply all environment updates at once
+        if env_updates:
+            _update_env_file(env_updates)
+            os.environ.update(env_updates)
+
+        data['_bandwidth'] = bandwidth
 
     return data
 
-if __name__ == "__main__":
+def request_quote(product_code: str, product_name: str, bandwidth: str = None, customer_po: str = "", url: str = f"{base_url}/Product/v1/priceRequest", access_token: str = None):
+    load_dotenv()
+
+    customer_number = os.getenv('CUSTOMER_NUMBER')
+    currency_code = os.getenv('CURRENCY_CODE')
+    master_site_id = os.getenv('MASTER_SITE_ID')
+    partner_id = os.getenv('PARTNER_ID')
+
+    if not customer_number or not currency_code or not master_site_id or not partner_id:
+        missing = [n for n, v in (
+            ('CUSTOMER_NUMBER', customer_number),
+            ('CURRENCY_CODE', currency_code),
+            ('MASTER_SITE_ID', master_site_id),
+            ('PARTNER_ID', partner_id)
+        ) if not v]
+        raise ValueError(f"Missing environment variables: {', '.join(missing)}")
+
+    access_token = access_token or get_valid_access_token()
+
+    # allow bandwidth to be omitted and read from env (SERVICE_BANDWIDTH only)
+    if not bandwidth:
+        bandwidth = os.getenv('SERVICE_BANDWIDTH')
+
+    headers = {
+        'x-customer-number': customer_number,
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    payload = {
+        "sourceSystem": "NaaS ExternalApi",
+        "customerPriceRequestDescription": "NaaS Price Request",
+        "customerPurchaseOrderNumber": customer_po,
+        "customerNumber": customer_number,
+        "currencyCode": currency_code,
+        "masterSiteId": master_site_id,
+        "productCode": product_code,
+        "partnerId": partner_id,
+        "productName": product_name,
+        "speed": bandwidth
+    }
+
+    resp = requests.post(url, headers=headers, json=payload)
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError:
+        print(f"Price request failed: {resp.status_code} {resp.text}")
+        raise
+
+    try:
+        data = resp.json()
+    except ValueError:
+        print(resp.text)
+        return resp.text
+
+    quote_id = data.get('id')
+    if quote_id:
+        print(f"Price request id: {quote_id}")
+        # attempt to append to orders helper (if available)
+        try:
+            from . import orders as orders_module
+        except Exception:
+            try:
+                import orders as orders_module
+            except Exception:
+                orders_module = None
+        if orders_module:
+            try:
+                orders_module.append_order(quote_id)
+                print(f"Appended quote id to orders file")
+            except Exception as e:
+                print(f"Failed to append quote id to orders file: {e}")
+    else:
+        print("No id returned in price request response")
+
+    return data
+
+
+def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_spec_id: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "This is a test", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
+	"""
+	Place an order request using env variables and a `quote_id` from a previous quote.
+
+	Required in env (unless provided as args):
+	- CUSTOMER_NUMBER
+	- BILLING_ACCOUNT_ID, BILLING_ACCOUNT_NAME
+	- SERVICE_ID (or pass service_id)
+	- PRODUCT_CODE (or pass product_code)
+	"""
+	load_dotenv()
+
+	customer_number = os.getenv('CUSTOMER_NUMBER')
+	billing_id = os.getenv('BILLING_ACCOUNT_ID')
+	billing_name = os.getenv('BILLING_ACCOUNT_NAME')
+
+	service_id = service_id or os.getenv('SERVICE_ID')
+	product_code = product_code or os.getenv('PRODUCT_CODE')
+	product_spec_id = product_spec_id or os.getenv('PRODUCT_SPEC_ID')
+	product_name = product_name or os.getenv('PRODUCT_NAME')
+
+	if not customer_number:
+		raise ValueError("CUSTOMER_NUMBER must be set in .env or passed in")
+	if not billing_id or not billing_name:
+		raise ValueError("BILLING_ACCOUNT_ID and BILLING_ACCOUNT_NAME must be set in .env")
+	if not service_id:
+		raise ValueError("service_id parameter or SERVICE_ID in .env must be provided.")
+	if not product_code:
+		raise ValueError("product_code parameter or PRODUCT_CODE in .env must be provided.")
+
+	access_token = access_token or get_valid_access_token()
+
+	headers = {
+		'x-customer-number': customer_number,
+		'Content-Type': 'application/json',
+		'Authorization': f'Bearer {access_token}'
+	}
+
+	# build payload
+	# Ensure external_id is limited to 20 characters including prefix from env
+	if external_id:
+		_final_external_id = str(external_id)
+	else:
+		prefix = os.getenv('EXTERNAL_ID_PREFIX')
+		suffix = str(int(time.time()))
+		# compute allowed suffix length
+		max_len = 20
+		allowed_suffix_len = max_len - len(prefix)
+		if allowed_suffix_len <= 0:
+			# prefix too long - truncate prefix to max length
+			_final_external_id = prefix[:max_len]
+		else:
+			# use the rightmost part of suffix to keep recent uniqueness
+			_final_external_id = prefix + suffix[-allowed_suffix_len:]
+	# ensure final length safety
+	_final_external_id = _final_external_id[:20]
+	if _final_external_id != (external_id or ''):
+		# update the external_id variable and notify
+		external_id = _final_external_id
+		print(f"Using external_id: {external_id}")
+	# base payload
+	payload = {
+		"externalId": external_id,
+		"billingAccount": {"id": billing_id, "name": billing_name},
+		"channel": [{"id": 99, "name": "NaaS ExternalApi"}],
+		"note": [{"text": note_text}],
+		"productOrderItem": [
+			{
+				"id": service_id,
+				"quantity": quantity,
+				"action": action,
+				"product": {
+					"id": service_id,
+					"productCharacteristic": [],
+					"productSpecification": {"id": product_spec_id or "5001", "name": product_name or "NaaS Internet"}
+				},
+				"productOffering": {"id": product_code, "name": product_name or "Internet On-Demand"}
+			}
+		],
+		"quote": [{"id": quote_id, "name": quote_id}],
+	}
+
+	# optional related contact info
+	contact_number = os.getenv('CONTACT_NUMBER')
+	contact_email = os.getenv('CONTACT_EMAIL')
+	contact_role = os.getenv('CONTACT_ROLE')
+	contact_org = os.getenv('CONTACT_ORG')
+	contact_name = os.getenv('CONTACT_NAME')
+	contact_ext = os.getenv('CONTACT_NUMBER_EXTENSION')
+	if contact_number or contact_email or contact_role or contact_org or contact_name or contact_ext:
+		related = {
+			"number": contact_number or "",
+			"emailAddress": contact_email or "",
+			"role": contact_role or "",
+			"organization": contact_org or "",
+			"name": contact_name or "",
+			"numberExtension": contact_ext or ""
+		}
+		payload["relatedContactInformation"] = [related]
+
+	resp = requests.post(url, headers=headers, json=payload)
+	try:
+		resp.raise_for_status()
+	except requests.HTTPError:
+		print(f"Order request failed: {resp.status_code} {resp.text}")
+		raise
+
+	try:
+		data = resp.json()
+	except ValueError:
+		print(resp.text)
+		return resp.text
+
+	print(f"Order response: {data}")
+	return data
+
+
+
+
+def main():
+	"""
+	Main workflow: check inventory, compare SERVICE_BANDWIDTH with QUOTE_BANDWIDTH.
 	
-	get_access_token()
-	egress_ip = get_egress_ip()
-	check_inventory()
+	If SERVICE_BANDWIDTH != QUOTE_BANDWIDTH, request a price quote and end.
+	If they are the same, no quote is requested.
+	
+	Requires .env file with:
+	- USERNAME, SECRET (OAuth credentials)
+	- CUSTOMER_NUMBER
+	- SERVICE_ID (or passed as argument)
+	- CURRENCY_CODE, PARTNER_ID (for quoting)
+	- PRODUCT_CODE, PRODUCT_NAME (for quoting)
+	- QUOTE_BANDWIDTH (set via set_quote_bandwidth())
+	"""
+	try:
+		# Step 1: Check inventory
+		print("=" * 50)
+		print("Step 1: Checking inventory...")
+		print("=" * 50)
+		inventory = check_inventory()
+		service_bandwidth = inventory.get('_bandwidth')
+		print(f"Inventory check complete. SERVICE_BANDWIDTH: {service_bandwidth}\n")
+
+		# Step 2: Compare SERVICE_BANDWIDTH with QUOTE_BANDWIDTH
+		load_dotenv()
+		quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
+		
+		print("=" * 50)
+		print("Step 2: Comparing bandwidth values...")
+		print("=" * 50)
+		print(f"SERVICE_BANDWIDTH: {service_bandwidth}")
+		print(f"QUOTE_BANDWIDTH: {quote_bandwidth}")
+		
+		if service_bandwidth == quote_bandwidth:
+			print("Bandwidths match. No quote needed.\n")
+			return 0
+		
+		print("Bandwidths differ. Requesting price quote...\n")
+		
+		# Step 3: Request price quote (only if bandwidths differ)
+		print("=" * 50)
+		print("Step 3: Requesting price quote...")
+		print("=" * 50)
+		quote = request_quote(
+			product_code=os.getenv('PRODUCT_CODE'),
+			product_name=os.getenv('PRODUCT_NAME'),
+			bandwidth=service_bandwidth
+		)
+		quote_id = quote.get('quoteId') or quote.get('id')
+		print(f"Quote created. Quote ID: {quote_id}\n")
+
+		print("=" * 50)
+		print("Workflow complete!")
+		print("=" * 50)
+
+	except Exception as e:
+		print(f"Error: {e}")
+		return 1
+	
+	return 0
+
+
+if __name__ == '__main__':
+	exit(main())
