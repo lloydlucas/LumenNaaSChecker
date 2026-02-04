@@ -501,5 +501,6 @@ def main():
 
 if __name__ == '__main__':
 	get_egress_ip()
+	get_access_token()
 	check_inventory()
 	#exit(main())
