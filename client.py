@@ -190,7 +190,7 @@ def check_inventory():
 		env_updates = {}
 		billing = svc.get('billingAccount', {})
 		if billing.get('id'):
-			env_updates['BILLING_ACCOUNT'] = billing['id']
+			env_updates['BILLING_ACCOUNT_ID'] = billing['id']
 		if billing.get('name'):
 			env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
 		bandwidth = next((pc.get('value') for pc in svc.get('productCharacteristic', []) or [] if pc.get('name') == 'Bandwidth'), None)
