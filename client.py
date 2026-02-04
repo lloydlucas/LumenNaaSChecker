@@ -146,93 +146,61 @@ def get_valid_access_token(buffer_seconds: int = 60) -> str:
 		raise ValueError("Failed to obtain access token")
 	return new
 
-def check_inventory(service_id: str = None, page_number: int = 1, page_size: int = 10, naas_enabled: bool = True, entitled: bool = True, service_type: str = "Internet", access_token: str = None):
-    """
-    Check Lumen product inventory for a given service.
 
-    Values pulled from .env when not provided:
-    - CUSTOMER_NUMBER -> header 'x-customer-number'
-    - SERVICE_ID -> used as serviceId query param when service_id not provided
-    - ACCESS_TOKEN -> Bearer token (will auto-refresh if missing)
+def check_inventory():
+	"""
+	Query Lumen inventory API using service_id and customer_number from .env.
+	Use ACCESS_TOKEN from env. Save billing account id/name and bandwidth to .env.
+	Return the parsed JSON response.
+	"""
+	load_dotenv()
+	service_id = os.getenv('SERVICE_ID')
+	customer_number = os.getenv('CUSTOMER_NUMBER')
+	access_token = os.getenv('ACCESS_TOKEN')
+	if not service_id:
+		raise ValueError('SERVICE_ID must be set in .env')
+	if not customer_number:
+		raise ValueError('CUSTOMER_NUMBER must be set in .env')
+	if not access_token:
+		raise ValueError('ACCESS_TOKEN must be set in .env')
 
-    Returns parsed JSON response with extracted bandwidth in data['_bandwidth'].
-    """
-    load_dotenv()
+	url = f"{base_url}/ProductInventory/v1/inventory?pageNumber=1&pageSize=10&naasEnabled=true&entitled=true&serviceType=Internet&serviceId={service_id}"
+	headers = {
+		'x-customer-number': customer_number,
+		'Authorization': f'Bearer {access_token}'
+	}
 
-    customer_number = os.getenv('CUSTOMER_NUMBER')
-    if not customer_number:
-        raise ValueError("CUSTOMER_NUMBER must be set in .env file.")
+	response = requests.get(url, headers=headers)
+	try:
+		response.raise_for_status()
+	except requests.HTTPError:
+		print(f"Inventory request failed: {response.status_code} {response.text}")
+		raise
 
-    service_id = service_id or os.getenv('SERVICE_ID')
-    if not service_id:
-        raise ValueError("service_id parameter or SERVICE_ID in .env must be provided.")
+	try:
+		data = response.json()
+	except ValueError:
+		print(response.text)
+		return response.text
 
-    access_token = access_token or get_valid_access_token()
-
-    url = f"{base_url}/ProductInventory/v1/inventory"
-    headers = {
-        'x-customer-number': customer_number,
-        'Authorization': f'Bearer {access_token}'
-    }
-    params = {
-        'pageNumber': page_number,
-        'pageSize': page_size,
-        'naasEnabled': str(naas_enabled).lower(),
-        'entitled': str(entitled).lower(),
-        'serviceType': service_type,
-        'serviceId': service_id
-    }
-
-    resp = requests.get(url, headers=headers, params=params)
-    try:
-        resp.raise_for_status()
-    except requests.HTTPError:
-        print(f"Inventory request failed: {resp.status_code} {resp.text}")
-        raise
-
-    try:
-        data = resp.json()
-    except ValueError:
-        print(resp.text)
-        return resp.text
-	
-
-	# Extract and persist data from first service inventory
+	# Save billing account and bandwidth to env
 	service_inventory = data.get('serviceInventory', []) if isinstance(data, dict) else []
 	if service_inventory:
 		svc = service_inventory[0]
 		env_updates = {}
-
-		# Extract master site ID (support both key variations)
-		loc = svc.get('location') or {}
-		master_siteid = loc.get('masterSiteid') or loc.get('masterSiteId')
-		if master_siteid:
-			env_updates['MASTER_SITE_ID'] = master_siteid
-
-		# Extract billing account
-		billing = svc.get('billingAccount') or {}
+		billing = svc.get('billingAccount', {})
 		if billing.get('id'):
-			env_updates['BILLING_ACCOUNT_ID'] = billing['id']
+			env_updates['BILLING_ACCOUNT'] = billing['id']
 		if billing.get('name'):
 			env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
-
-		# Extract Bandwidth and save to env in lowercase
-		bandwidth = next(
-			(pc.get('value') for pc in svc.get('productCharacteristic', []) or []
-			 if pc.get('name') == 'Bandwidth'),
-			None
-		)
+		bandwidth = next((pc.get('value') for pc in svc.get('productCharacteristic', []) or [] if pc.get('name') == 'Bandwidth'), None)
 		if bandwidth:
-			bw_norm = str(bandwidth).lower()
-			env_updates['SERVICE_BANDWIDTH'] = bw_norm
-			# Persist to .env and in-memory
-			_update_env_file({'SERVICE_BANDWIDTH': bw_norm})
-			os.environ['SERVICE_BANDWIDTH'] = bw_norm
-		# Optionally, add to returned data for convenience
-		data['_bandwidth'] = bandwidth if bandwidth else None
-
+			env_updates['SERVICE_BANDWIDTH'] = str(bandwidth).lower()
+		if env_updates:
+			_update_env_file(env_updates)
+			for k, v in env_updates.items():
+				os.environ[k] = v
 	return data
-
 
 
 def set_quote_bandwidth():
