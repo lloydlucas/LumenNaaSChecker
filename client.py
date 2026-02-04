@@ -311,7 +311,7 @@ def price_request():
 	print(data.get('id'))
 
 
-def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_spec_id: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "This is a test", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
+def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_spec_id: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "Change", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
 	"""
 	Place an order request using env variables and a `quote_id` from a previous quote.
 
@@ -452,9 +452,8 @@ def main():
 		print("=" * 50)
 		print("Step 1: Checking inventory...")
 		print("=" * 50)
-		inventory = check_inventory()
-		service_bandwidth = inventory.get('_bandwidth')
-		print(f"Inventory check complete. SERVICE_BANDWIDTH: {service_bandwidth}\n")
+		check_inventory()
+		print(f"Inventory check complete.\n")
 
 		# Step 1.5: Set quote bandwidth based on egress IP
 		print("=" * 50)
@@ -503,8 +502,4 @@ def main():
 
 
 if __name__ == '__main__':
-	get_egress_ip()
-	get_access_token()
-	check_inventory()
-	set_quote_bandwidth()
-	#exit(main())
+	exit(main())
