@@ -252,81 +252,60 @@ def set_quote_bandwidth():
 
 
 
-def request_quote(product_code: str, product_name: str, bandwidth: str = None, customer_po: str = "", url: str = f"{base_url}/Product/v1/priceRequest", access_token: str = None):
-    load_dotenv()
+def price_request():
+	"""
+	Send a price request to the Lumen API using env values and print only the id from the response.
+	"""
+	import requests
+	import json
+	from dotenv import load_dotenv
+	load_dotenv()
 
-    customer_number = os.getenv('CUSTOMER_NUMBER')
-    currency_code = os.getenv('CURRENCY_CODE')
-    master_site_id = os.getenv('MASTER_SITE_ID')
-    partner_id = os.getenv('PARTNER_ID')
+	url = f"{base_url}/Product/v1/priceRequest"
+	customer_number = os.getenv('CUSTOMER_NUMBER')
+	currency_code = os.getenv('CURRENCY_CODE')
+	master_site_id = os.getenv('MASTER_SITE_ID')
+	partner_id = os.getenv('PARTNER_ID')
+	quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
+	product_code = os.getenv('PRODUCT_CODE', '718')
+	product_name = os.getenv('PRODUCT_NAME', 'Internet On-Demand')
+	access_token = os.getenv('ACCESS_TOKEN')
 
-    if not customer_number or not currency_code or not master_site_id or not partner_id:
-        missing = [n for n, v in (
-            ('CUSTOMER_NUMBER', customer_number),
-            ('CURRENCY_CODE', currency_code),
-					bandwidth = next(
-						(pc.get('value') for pc in svc.get('productCharacteristic', []) or []
-						 if pc.get('name') == 'Bandwidth'),
-						None
-					)
-					if bandwidth:
-						bw_norm = str(bandwidth).lower()
-						print(f"{bw_norm}")
-						env_updates['SERVICE_BANDWIDTH'] = bw_norm
-						bandwidth = bw_norm
-    headers = {
-        'x-customer-number': customer_number,
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
+	if not all([customer_number, currency_code, master_site_id, partner_id, quote_bandwidth, access_token]):
+		raise ValueError("Missing required environment variables for price request.")
 
-    payload = {
-        "sourceSystem": "NaaS ExternalApi",
-        "customerPriceRequestDescription": "NaaS Price Request",
-        "customerPurchaseOrderNumber": customer_po,
-        "customerNumber": customer_number,
-        "currencyCode": currency_code,
-        "masterSiteId": master_site_id,
-        "productCode": product_code,
-        "partnerId": partner_id,
-        "productName": product_name,
-        "speed": bandwidth
-    }
+	payload = json.dumps({
+		"sourceSystem": "NaaS ExternalApi",
+		"customerPriceRequestDescription": "NaaS Price Request",
+		"customerPurchaseOrderNumber": "",
+		"customerNumber": customer_number,
+		"currencyCode": currency_code,
+		"masterSiteId": master_site_id,
+		"productCode": product_code,
+		"partnerId": partner_id,
+		"productName": product_name,
+		"speed": quote_bandwidth
+	})
+	headers = {
+		'x-customer-number': customer_number,
+		'Content-Type': 'application/json',
+		'Authorization': f'Bearer {access_token}'
+	}
 
-    resp = requests.post(url, headers=headers, json=payload)
-    try:
-        resp.raise_for_status()
-    except requests.HTTPError:
-        print(f"Price request failed: {resp.status_code} {resp.text}")
-        raise
+	response = requests.post(url, headers=headers, data=payload)
+	try:
+		response.raise_for_status()
+	except requests.HTTPError:
+		print(f"Price request failed: {response.status_code} {response.text}")
+		raise
 
-    try:
-        data = resp.json()
-    except ValueError:
-        print(resp.text)
-        return resp.text
+	try:
+		data = response.json()
+	except ValueError:
+		print(response.text)
+		return
 
-    quote_id = data.get('id')
-    if quote_id:
-        print(f"Price request id: {quote_id}")
-        # attempt to append to orders helper (if available)
-        try:
-            from . import orders as orders_module
-        except Exception:
-            try:
-                import orders as orders_module
-            except Exception:
-                orders_module = None
-        if orders_module:
-            try:
-                orders_module.append_order(quote_id)
-                print(f"Appended quote id to orders file")
-            except Exception as e:
-                print(f"Failed to append quote id to orders file: {e}")
-    else:
-        print("No id returned in price request response")
-
-    return data
+	print(data.get('id'))
 
 
 def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_spec_id: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "This is a test", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
@@ -444,8 +423,6 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 
 	print(f"Order response: {data}")
 	return data
-
-
 
 
 def main():
