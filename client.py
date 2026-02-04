@@ -18,12 +18,19 @@ base_url = "https://api.lumen.com"
 
 import time
 
-def get_access_token() -> str:
+def get_access_token(force: bool = False) -> str:
 	"""
-	Request a new access token and store it in .env along with its expiry time.
-	Returns the access token string on success, otherwise None.
+	Return a valid access token. If force is False, return the stored token if it exists and hasn't expired;
+	otherwise request a new token and store it with expiry metadata. Returns the access token string on
+	success, otherwise None.
 	"""
 	load_dotenv()
+	# If not forcing a refresh, return the cached token when it's still valid
+	if not force:
+		token = os.getenv('ACCESS_TOKEN')
+		if token and not is_access_token_expired():
+			return token
+
 	url = f"{base_url}/oauth/v2/token"
 	payload = 'grant_type=client_credentials'
 	username = os.getenv('USERNAME')
@@ -105,8 +112,6 @@ def get_valid_access_token(buffer_seconds: int = 60) -> str:
 	return new
 
 
-
-
 def get_quote():
     access_token = get_valid_access_token()
     url = f"{base_url}/v2/quotes"
@@ -181,6 +186,7 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
 
 
 if __name__ == "__main__":
+	
 	get_access_token()
 	egress_ip = get_egress_ip()
 
