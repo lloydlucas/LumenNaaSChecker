@@ -247,31 +247,40 @@ def set_quote_bandwidth():
 	Returns the bandwidth value set.
 	"""
 	load_dotenv()
-	
+
+	# Ensure we have an egress IP; if not, attempt to retrieve it
 	egress_ip = os.getenv('EGRESS_IP')
-	lumen_ip = os.getenv('LUMEN_IP')
-	
 	if not egress_ip:
-		raise ValueError("EGRESS_IP must be set in .env file.")
+		egress_ip = get_egress_ip()
+
+	lumen_ip = os.getenv('LUMEN_IP')
+
+	if not egress_ip:
+		raise ValueError("EGRESS_IP must be set in .env file or retrievable via get_egress_ip().")
 	if not lumen_ip:
 		raise ValueError("LUMEN_IP must be set in .env file.")
-	
-	if egress_ip == lumen_ip:
+
+	# Normalize values for comparison
+	egress_ip_n = egress_ip.strip()
+	lumen_ip_n = lumen_ip.strip()
+
+	if egress_ip_n == lumen_ip_n:
 		bandwidth = os.getenv('BANDWIDTH_FULL')
-		source = "BANDWIDTH_FULL"
+		source = 'BANDWIDTH_FULL'
 	else:
 		bandwidth = os.getenv('BANDWIDTH_HEARTBEAT')
-		source = "BANDWIDTH_HEARTBEAT"
-	
+		source = 'BANDWIDTH_HEARTBEAT'
+
 	if not bandwidth:
 		raise ValueError(f"{source} must be set in .env file.")
-	
+
+	# Persist the chosen quote bandwidth
 	_update_env_file({'QUOTE_BANDWIDTH': bandwidth})
 	os.environ['QUOTE_BANDWIDTH'] = bandwidth
-	
-	print(f"Egress IP: {egress_ip}, LUMEN_IP: {lumen_ip}")
-	print(f"Match: {egress_ip == lumen_ip}, QUOTE_BANDWIDTH set to: {bandwidth}")
-	
+
+	print(f"Egress IP: {egress_ip_n}, LUMEN_IP: {lumen_ip_n}")
+	print(f"Match: {egress_ip_n == lumen_ip_n}, QUOTE_BANDWIDTH set to: {bandwidth}")
+
 	return bandwidth
 
 
@@ -496,12 +505,6 @@ def main():
 		inventory = check_inventory()
 		service_bandwidth = inventory.get('_bandwidth')
 		print(f"Inventory check complete. SERVICE_BANDWIDTH: {service_bandwidth}\n")
-
-		# Run egress IP collection before determining quote bandwidth
-		print("=" * 50)
-		print("Collecting egress IP...")
-		print("=" * 50)
-		get_egress_ip()
 
 		# Step 1.5: Set quote bandwidth based on egress IP
 		print("=" * 50)
