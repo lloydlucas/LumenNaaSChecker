@@ -483,6 +483,13 @@ def main():
 		service_bandwidth = inventory.get('_bandwidth')
 		print(f"Inventory check complete. SERVICE_BANDWIDTH: {service_bandwidth}\n")
 
+		# Step 1.5: Set quote bandwidth based on egress IP
+		print("=" * 50)
+		print("Step 1.5: Setting quote bandwidth...")
+		print("=" * 50)
+		set_quote_bandwidth()
+		print()
+
 		# Step 2: Compare SERVICE_BANDWIDTH with QUOTE_BANDWIDTH
 		load_dotenv()
 		quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
