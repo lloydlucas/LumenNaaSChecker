@@ -270,8 +270,8 @@ def price_request():
 	master_site_id = os.getenv('MASTER_SITE_ID')
 	partner_id = os.getenv('PARTNER_ID')
 	quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
-	product_code = os.getenv('PRODUCT_CODE', '718')
-	product_name = os.getenv('PRODUCT_NAME', 'Internet On-Demand')
+	product_code = os.getenv('PRODUCT_CODE')
+	product_name = os.getenv('PRODUCT_NAME')
 	access_token = os.getenv('ACCESS_TOKEN')
 
 	if not all([customer_number, currency_code, master_site_id, partner_id, quote_bandwidth, access_token]):
