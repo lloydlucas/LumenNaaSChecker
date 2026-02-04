@@ -483,7 +483,7 @@ def main():
 		print("=" * 50)
 		print("Step 3: Requesting price quote...")
 		print("=" * 50)
-		quote = request_quote(
+		quote = price_request(
 			product_code=os.getenv('PRODUCT_CODE'),
 			product_name=os.getenv('PRODUCT_NAME'),
 			bandwidth=service_bandwidth
