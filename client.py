@@ -11,7 +11,7 @@ def get_egress_ip():
 	try:
 		result = subprocess.run(['curl', '-s', 'ifconfig.me'], capture_output=True, text=True, check=True)
 		egress_ip = result.stdout.strip()
-		print(f"Egress IP: {egress_ip}")
+		print(f"{egress_ip}")
 		return egress_ip
 	except Exception as e:
 		print(f"Failed to get egress IP: {e}")
