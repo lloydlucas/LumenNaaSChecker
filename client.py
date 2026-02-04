@@ -497,6 +497,12 @@ def main():
 		service_bandwidth = inventory.get('_bandwidth')
 		print(f"Inventory check complete. SERVICE_BANDWIDTH: {service_bandwidth}\n")
 
+		# Run egress IP collection before determining quote bandwidth
+		print("=" * 50)
+		print("Collecting egress IP...")
+		print("=" * 50)
+		get_egress_ip()
+
 		# Step 1.5: Set quote bandwidth based on egress IP
 		print("=" * 50)
 		print("Step 1.5: Setting quote bandwidth...")
