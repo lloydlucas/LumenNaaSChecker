@@ -18,71 +18,97 @@ base_url = "https://api.lumen.com"
 
 import time
 
+def _update_env_file(updates: dict) -> None:
+	"""Update or append keys in the local .env file.
+
+	This is intentionally simple: it preserves the existing file layout and comments,
+	replacing any lines that start with a key that's present in `updates`, and appending
+	any keys not already present.
+	"""
+	env_path = '.env'
+	lines = []
+	if os.path.exists(env_path):
+		with open(env_path, 'r') as f:
+			lines = f.readlines()
+
+	out_lines = []
+	replaced = set()
+	for line in lines:
+		stripped = line.strip()
+		if not stripped or stripped.startswith('#') or '=' not in line:
+			out_lines.append(line)
+			continue
+		key = line.split('=', 1)[0]
+		if key in updates:
+			out_lines.append(f"{key}={updates[key]}\n")
+			replaced.add(key)
+		else:
+			out_lines.append(line)
+
+	for k, v in updates.items():
+		if k not in replaced:
+			out_lines.append(f"{k}={v}\n")
+
+	with open(env_path, 'w') as f:
+		f.writelines(out_lines)
+
+
 def get_access_token(force: bool = False) -> str:
 	"""
-	Return a valid access token. If force is False, return the stored token if it exists and hasn't expired;
-	otherwise request a new token and store it with expiry metadata. Returns the access token string on
-	success, otherwise None.
+	Return a valid access token.
+
+	If `force` is False the cached token is returned when present and not expired. When a new
+	token is requested it is written to `.env` along with `ACCESS_TOKEN_EXPIRES_AT` (epoch secs)
+	and the local environment variables are updated.
+	
+	Raises ValueError on failure to obtain a token.
 	"""
 	load_dotenv()
-	# If not forcing a refresh, return the cached token when it's still valid
 	if not force:
 		token = os.getenv('ACCESS_TOKEN')
 		if token and not is_access_token_expired():
 			return token
 
-	url = f"{base_url}/oauth/v2/token"
-	payload = 'grant_type=client_credentials'
 	username = os.getenv('USERNAME')
 	secret = os.getenv('SECRET')
 	if not username or not secret:
 		raise ValueError("USERNAME and SECRET must be set in .env file.")
+
+	url = f"{base_url}/oauth/v2/token"
+	payload = 'grant_type=client_credentials'
 	basic_auth = base64.b64encode(f"{username}:{secret}".encode()).decode()
 	headers = {
 		'Content-Type': 'application/x-www-form-urlencoded',
 		'Authorization': f"Basic {basic_auth}"
 	}
+
 	response = requests.post(url, headers=headers, data=payload)
-	if response.status_code == 200:
-		data = response.json()
-		access_token = data.get('access_token')
-		expires_in = data.get('expires_in')
-		now = int(time.time())
-		if access_token:
-			# Overwrite ACCESS_TOKEN and ACCESS_TOKEN_EXPIRES_AT in .env file
-			env_path = '.env'
-			lines = []
-			with open(env_path, 'r') as env_file:
-				lines = env_file.readlines()
-			with open(env_path, 'w') as env_file:
-				found_token = False
-				found_exp = False
-				for line in lines:
-					if line.startswith('ACCESS_TOKEN='):
-						env_file.write(f"ACCESS_TOKEN={access_token}\n")
-						found_token = True
-					elif line.startswith('ACCESS_TOKEN_EXPIRES_AT='):
-						# write computed expiry if available
-						if expires_in:
-							expires_at = now + int(expires_in)
-							env_file.write(f"ACCESS_TOKEN_EXPIRES_AT={expires_at}\n")
-						else:
-							env_file.write(line)
-						found_exp = True
-					else:
-						env_file.write(line)
-				if not found_token:
-					env_file.write(f"ACCESS_TOKEN={access_token}\n")
-				if not found_exp and expires_in:
-					expires_at = now + int(expires_in)
-					env_file.write(f"ACCESS_TOKEN_EXPIRES_AT={expires_at}\n")
-			print(f"ACCESS_TOKEN value '{access_token}' updated in .env (expires_in={expires_in})")
-			return access_token
-		else:
-			print("No access token found in response.")
-	else:
-		print(f"Failed to get token: {response.status_code} {response.text}")
-	return None
+	if response.status_code != 200:
+		raise ValueError(f"Failed to get token: {response.status_code} {response.text}")
+
+	data = response.json()
+	access_token = data.get('access_token')
+	expires_in = data.get('expires_in')
+	if not access_token:
+		raise ValueError("No access token found in response.")
+
+	updates = {'ACCESS_TOKEN': access_token}
+	if expires_in is not None:
+		try:
+			expires_at = int(time.time()) + int(expires_in)
+			updates['ACCESS_TOKEN_EXPIRES_AT'] = str(expires_at)
+		except Exception:
+			# ignore expiry if parsing fails
+			pass
+
+	# write and update in-memory env for immediate use
+	_update_env_file(updates)
+	os.environ['ACCESS_TOKEN'] = access_token
+	if 'ACCESS_TOKEN_EXPIRES_AT' in updates:
+		os.environ['ACCESS_TOKEN_EXPIRES_AT'] = updates['ACCESS_TOKEN_EXPIRES_AT']
+
+	print(f"ACCESS_TOKEN updated (expires_in={expires_in})")
+	return access_token
 
 
 def is_access_token_expired(buffer_seconds: int = 60) -> bool:
