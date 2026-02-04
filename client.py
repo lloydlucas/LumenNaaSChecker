@@ -465,6 +465,7 @@ def main():
 		# Step 2: Compare SERVICE_BANDWIDTH with QUOTE_BANDWIDTH
 		load_dotenv()
 		quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
+		service_bandwidth = os.getenv('SERVICE_BANDWIDTH')
 
 		print("=" * 50)
 		print("Step 2: Comparing bandwidth values...")
