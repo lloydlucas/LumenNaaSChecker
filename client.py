@@ -221,16 +221,19 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
              if pc.get('name') == 'Bandwidth'),
             None
         )
-        if bandwidth:
-            print(f"{bandwidth}")
-            env_updates['SERVICE_BANDWIDTH'] = bandwidth
+		if bandwidth:
+			# normalize to lowercase for consistent downstream usage
+			bw_norm = str(bandwidth).lower()
+			print(f"{bw_norm}")
+			env_updates['SERVICE_BANDWIDTH'] = bw_norm
+			bandwidth = bw_norm
 
-        # Apply all environment updates at once
-        if env_updates:
-            _update_env_file(env_updates)
-            os.environ.update(env_updates)
+		# Apply all environment updates at once
+		if env_updates:
+			_update_env_file(env_updates)
+			os.environ.update(env_updates)
 
-        data['_bandwidth'] = bandwidth
+		data['_bandwidth'] = bandwidth
 
     return data
 
