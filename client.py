@@ -189,10 +189,13 @@ def check_inventory():
 		svc = service_inventory[0]
 		env_updates = {}
 		billing = svc.get('billingAccount', {})
+		location = svc.get('location', {})
 		if billing.get('id'):
 			env_updates['BILLING_ACCOUNT_ID'] = billing['id']
 		if billing.get('name'):
-			env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
+			env_updates['BILLING_ACCOUNT_NAE'] = billing['name']
+		if location.get('masterSiteId'):	
+			env_updates['MASTER_SITE_ID'] = location['masterSiteId']
 		bandwidth = next((pc.get('value') for pc in svc.get('productCharacteristic', []) or [] if pc.get('name') == 'Bandwidth'), None)
 		if bandwidth:
 			env_updates['SERVICE_BANDWIDTH'] = str(bandwidth).lower()
