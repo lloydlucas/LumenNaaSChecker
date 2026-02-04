@@ -195,27 +195,43 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
     except ValueError:
         print(resp.text)
         return resp.text
+	
 
-    # Extract and persist data from first service inventory
-    service_inventory = data.get('serviceInventory', []) if isinstance(data, dict) else []
-    if service_inventory:
-        svc = service_inventory[0]
-        env_updates = {}
+	# Extract and persist data from first service inventory
+	service_inventory = data.get('serviceInventory', []) if isinstance(data, dict) else []
+	if service_inventory:
+		svc = service_inventory[0]
+		env_updates = {}
 
-        # Extract master site ID (support both key variations)
-        loc = svc.get('location') or {}
-        master_siteid = loc.get('masterSiteid') or loc.get('masterSiteId')
-        if master_siteid:
-            env_updates['MASTER_SITE_ID'] = master_siteid
+		# Extract master site ID (support both key variations)
+		loc = svc.get('location') or {}
+		master_siteid = loc.get('masterSiteid') or loc.get('masterSiteId')
+		if master_siteid:
+			env_updates['MASTER_SITE_ID'] = master_siteid
 
-        # Extract billing account
-        billing = svc.get('billingAccount') or {}
-        if billing.get('id'):
-            env_updates['BILLING_ACCOUNT_ID'] = billing['id']
-        if billing.get('name'):
-            env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
+		# Extract billing account
+		billing = svc.get('billingAccount') or {}
+		if billing.get('id'):
+			env_updates['BILLING_ACCOUNT_ID'] = billing['id']
+		if billing.get('name'):
+			env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
 
-    return data
+		# Extract Bandwidth and save to env in lowercase
+		bandwidth = next(
+			(pc.get('value') for pc in svc.get('productCharacteristic', []) or []
+			 if pc.get('name') == 'Bandwidth'),
+			None
+		)
+		if bandwidth:
+			bw_norm = str(bandwidth).lower()
+			env_updates['SERVICE_BANDWIDTH'] = bw_norm
+			# Persist to .env and in-memory
+			_update_env_file({'SERVICE_BANDWIDTH': bw_norm})
+			os.environ['SERVICE_BANDWIDTH'] = bw_norm
+		# Optionally, add to returned data for convenience
+		data['_bandwidth'] = bandwidth if bandwidth else None
+
+	return data
 
 
 
