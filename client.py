@@ -440,7 +440,11 @@ def main():
 	- PRODUCT_CODE, PRODUCT_NAME (for quoting)
 	- QUOTE_BANDWIDTH (set via set_quote_bandwidth())
 	"""
+
 	try:
+		# Ensure access token is available before all steps
+		get_access_token()
+
 		# Step 1: Check inventory
 		print("=" * 50)
 		print("Step 1: Checking inventory...")
@@ -459,19 +463,19 @@ def main():
 		# Step 2: Compare SERVICE_BANDWIDTH with QUOTE_BANDWIDTH
 		load_dotenv()
 		quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
-		
+
 		print("=" * 50)
 		print("Step 2: Comparing bandwidth values...")
 		print("=" * 50)
 		print(f"SERVICE_BANDWIDTH: {service_bandwidth}")
 		print(f"QUOTE_BANDWIDTH: {quote_bandwidth}")
-		
+
 		if service_bandwidth == quote_bandwidth:
 			print("Bandwidths match. No quote needed.\n")
 			return 0
-		
+
 		print("Bandwidths differ. Requesting price quote...\n")
-		
+
 		# Step 3: Request price quote (only if bandwidths differ)
 		print("=" * 50)
 		print("Step 3: Requesting price quote...")
@@ -491,7 +495,7 @@ def main():
 	except Exception as e:
 		print(f"Error: {e}")
 		return 1
-	
+
 	return 0
 
 
