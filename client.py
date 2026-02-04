@@ -215,4 +215,5 @@ if __name__ == "__main__":
 	
 	get_access_token()
 	egress_ip = get_egress_ip()
-
+	check_inventory()
+    print("Done.")
