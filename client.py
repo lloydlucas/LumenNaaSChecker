@@ -8,10 +8,20 @@ import time
 base_url = "https://api.lumen.com"
 
 def get_egress_ip():
+	"""
+	Retrieve the current egress IP address and persist it to .env as EGRESS_IP.
+	
+	Returns the IP address string, or None on failure.
+	"""
 	try:
-		result = subprocess.run(['curl', '-s', 'ifconfig.me'], capture_output=True, text=True, check=True)
+		result = subprocess.run(['curl', '-s', 'ifconfig.me'], capture_output=True, text=True)
 		egress_ip = result.stdout.strip()
+		if not egress_ip:
+			raise ValueError("No IP returned from ifconfig.me")
+		
 		print(f"{egress_ip}")
+		_update_env_file({'EGRESS_IP': egress_ip})
+		os.environ['EGRESS_IP'] = egress_ip
 		return egress_ip
 	except Exception as e:
 		print(f"Failed to get egress IP: {e}")
@@ -136,44 +146,6 @@ def get_valid_access_token(buffer_seconds: int = 60) -> str:
 		raise ValueError("Failed to obtain access token")
 	return new
 
-
-def set_quote_bandwidth():
-	"""
-	Determine quote bandwidth based on egress IP comparison.
-	
-	Calls get_egress_ip() and compares with LUMEN_IP from .env:
-	- If same: set QUOTE_BANDWIDTH = BANDWIDTH_FULL
-	- If different: set QUOTE_BANDWIDTH = BANDWIDTH_HEARTBEAT
-	
-	Returns the bandwidth value set.
-	"""
-	load_dotenv()
-	
-	egress_ip = get_egress_ip()
-	lumen_ip = os.getenv('LUMEN_IP')
-	
-	if not lumen_ip:
-		raise ValueError("LUMEN_IP must be set in .env file.")
-	
-	if egress_ip == lumen_ip:
-		bandwidth = os.getenv('BANDWIDTH_FULL')
-		source = "BANDWIDTH_FULL"
-	else:
-		bandwidth = os.getenv('BANDWIDTH_HEARTBEAT')
-		source = "BANDWIDTH_HEARTBEAT"
-	
-	if not bandwidth:
-		raise ValueError(f"{source} must be set in .env file.")
-	
-	_update_env_file({'QUOTE_BANDWIDTH': bandwidth})
-	os.environ['QUOTE_BANDWIDTH'] = bandwidth
-	
-	print(f"Egress IP: {egress_ip}, LUMEN_IP: {lumen_ip}")
-	print(f"Match: {egress_ip == lumen_ip}, QUOTE_BANDWIDTH set to: {bandwidth}")
-	
-	return bandwidth
-
-
 def check_inventory(service_id: str = None, page_number: int = 1, page_size: int = 10, naas_enabled: bool = True, entitled: bool = True, service_type: str = "Internet", access_token: str = None):
     """
     Check Lumen product inventory for a given service.
@@ -261,6 +233,48 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
         data['_bandwidth'] = bandwidth
 
     return data
+
+
+
+def set_quote_bandwidth():
+	"""
+	Determine quote bandwidth based on egress IP comparison.
+	
+	Reads EGRESS_IP from .env and compares with LUMEN_IP:
+	- If same: set QUOTE_BANDWIDTH = BANDWIDTH_FULL
+	- If different: set QUOTE_BANDWIDTH = BANDWIDTH_HEARTBEAT
+	
+	Returns the bandwidth value set.
+	"""
+	load_dotenv()
+	
+	egress_ip = os.getenv('EGRESS_IP')
+	lumen_ip = os.getenv('LUMEN_IP')
+	
+	if not egress_ip:
+		raise ValueError("EGRESS_IP must be set in .env file.")
+	if not lumen_ip:
+		raise ValueError("LUMEN_IP must be set in .env file.")
+	
+	if egress_ip == lumen_ip:
+		bandwidth = os.getenv('BANDWIDTH_FULL')
+		source = "BANDWIDTH_FULL"
+	else:
+		bandwidth = os.getenv('BANDWIDTH_HEARTBEAT')
+		source = "BANDWIDTH_HEARTBEAT"
+	
+	if not bandwidth:
+		raise ValueError(f"{source} must be set in .env file.")
+	
+	_update_env_file({'QUOTE_BANDWIDTH': bandwidth})
+	os.environ['QUOTE_BANDWIDTH'] = bandwidth
+	
+	print(f"Egress IP: {egress_ip}, LUMEN_IP: {lumen_ip}")
+	print(f"Match: {egress_ip == lumen_ip}, QUOTE_BANDWIDTH set to: {bandwidth}")
+	
+	return bandwidth
+
+
 
 def request_quote(product_code: str, product_name: str, bandwidth: str = None, customer_po: str = "", url: str = f"{base_url}/Product/v1/priceRequest", access_token: str = None):
     load_dotenv()
