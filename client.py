@@ -216,11 +216,12 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
             env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
 
         # Extract bandwidth from product characteristics
-        bandwidth = next(
-            (pc.get('value') for pc in svc.get('productCharacteristic', []) or []
-             if pc.get('name') == 'Bandwidth'),
-            None
-        )
+
+		bandwidth = next(
+			(pc.get('value') for pc in svc.get('productCharacteristic', []) or []
+			 if pc.get('name') == 'Bandwidth'),
+			None
+		)
 		if bandwidth:
 			# normalize to lowercase for consistent downstream usage
 			bw_norm = str(bandwidth).lower()
