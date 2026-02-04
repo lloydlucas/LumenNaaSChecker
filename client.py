@@ -215,27 +215,6 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
         if billing.get('name'):
             env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
 
-        # Extract bandwidth from product characteristics
-
-		bandwidth = next(
-			(pc.get('value') for pc in svc.get('productCharacteristic', []) or []
-			 if pc.get('name') == 'Bandwidth'),
-			None
-		)
-		if bandwidth:
-			# normalize to lowercase for consistent downstream usage
-			bw_norm = str(bandwidth).lower()
-			print(f"{bw_norm}")
-			env_updates['SERVICE_BANDWIDTH'] = bw_norm
-			bandwidth = bw_norm
-
-		# Apply all environment updates at once
-		if env_updates:
-			_update_env_file(env_updates)
-			os.environ.update(env_updates)
-
-		data['_bandwidth'] = bandwidth
-
     return data
 
 
@@ -301,17 +280,16 @@ def request_quote(product_code: str, product_name: str, bandwidth: str = None, c
         missing = [n for n, v in (
             ('CUSTOMER_NUMBER', customer_number),
             ('CURRENCY_CODE', currency_code),
-            ('MASTER_SITE_ID', master_site_id),
-            ('PARTNER_ID', partner_id)
-        ) if not v]
-        raise ValueError(f"Missing environment variables: {', '.join(missing)}")
-
-    access_token = access_token or get_valid_access_token()
-
-    # allow bandwidth to be omitted and read from env (SERVICE_BANDWIDTH only)
-    if not bandwidth:
-        bandwidth = os.getenv('SERVICE_BANDWIDTH')
-
+					bandwidth = next(
+						(pc.get('value') for pc in svc.get('productCharacteristic', []) or []
+						 if pc.get('name') == 'Bandwidth'),
+						None
+					)
+					if bandwidth:
+						bw_norm = str(bandwidth).lower()
+						print(f"{bw_norm}")
+						env_updates['SERVICE_BANDWIDTH'] = bw_norm
+						bandwidth = bw_norm
     headers = {
         'x-customer-number': customer_number,
         'Content-Type': 'application/json',
