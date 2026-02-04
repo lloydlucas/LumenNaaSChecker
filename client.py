@@ -193,7 +193,7 @@ def check_inventory():
 		if billing.get('id'):
 			env_updates['BILLING_ACCOUNT_ID'] = billing['id']
 		if billing.get('name'):
-			env_updates['BILLING_ACCOUNT_NAE'] = billing['name']
+			env_updates['BILLING_ACCOUNT_NAME'] = billing['name']
 		if location.get('masterSiteId'):	
 			env_updates['MASTER_SITE_ID'] = location['masterSiteId']
 		bandwidth = next((pc.get('value') for pc in svc.get('productCharacteristic', []) or [] if pc.get('name') == 'Bandwidth'), None)
@@ -506,4 +506,5 @@ if __name__ == '__main__':
 	get_egress_ip()
 	get_access_token()
 	check_inventory()
+	set_quote_bandwidth()
 	#exit(main())
