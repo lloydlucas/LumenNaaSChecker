@@ -154,8 +154,6 @@ def get_quote():
         return None
 
 
-
-
 def check_inventory(service_id: str = None, page_number: int = 1, page_size: int = 10, naas_enabled: bool = True, entitled: bool = True, service_type: str = "Internet", access_token: str = None):
     """
     Check Lumen product inventory for a given service.
@@ -198,7 +196,6 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
     url = f"{base_url}/ProductInventory/v1/inventory"
 
     resp = requests.get(url, headers=headers, params=params)
-    print(resp.text)
     try:
         resp.raise_for_status()
     except requests.HTTPError:
@@ -206,10 +203,40 @@ def check_inventory(service_id: str = None, page_number: int = 1, page_size: int
         raise
 
     try:
-        return resp.json()
+        data = resp.json()
     except ValueError:
+        # Non-JSON response; print raw body
+        print(resp.text)
         return resp.text
 
+    # Extract first service from inventory
+    service_inventory = data.get('serviceInventory', []) if isinstance(data, dict) else []
+    if service_inventory:
+        svc = service_inventory[0]
+        # Support both 'masterSiteid' and 'masterSiteId' keys
+        master_siteid = None
+        loc = svc.get('location') or {}
+        if isinstance(loc, dict):
+            master_siteid = loc.get('masterSiteid') or loc.get('masterSiteId')
+        if master_siteid:
+            _update_env_file({'MASTER_SITE_ID': master_siteid})
+            os.environ['MASTER_SITE_ID'] = master_siteid
+            print(f"Set MASTER_SITE_ID in .env to '{master_siteid}'")
+
+        # Find the Bandwidth value
+        bandwidth = None
+        for pc in svc.get('productCharacteristic', []) or []:
+            if pc.get('name') == 'Bandwidth':
+                bandwidth = pc.get('value')
+                break
+        if bandwidth:
+            print(f"Bandwidth: {bandwidth}")
+        else:
+            print("Bandwidth not found in service characteristics")
+    else:
+        print("No service inventory found in response")
+
+    return data
 
 if __name__ == "__main__":
 	
