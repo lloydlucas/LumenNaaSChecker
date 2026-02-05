@@ -62,6 +62,9 @@ def _update_env_file(updates: dict) -> None:
 		f.writelines(out_lines)
 
 
+
+
+
 def get_access_token(force: bool = False) -> str:
 	"""
 	Return a valid access token.
@@ -326,12 +329,12 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 	customer_number = os.getenv('CUSTOMER_NUMBER')
 	billing_id = os.getenv('BILLING_ACCOUNT_ID')
 	billing_name = os.getenv('BILLING_ACCOUNT_NAME')
-
 	service_id = service_id or os.getenv('SERVICE_ID')
 	product_code = product_code or os.getenv('PRODUCT_CODE')
 	product_spec_id = product_spec_id or os.getenv('PRODUCT_SPEC_ID')
 	product_name = product_name or os.getenv('PRODUCT_NAME')
-
+	access_token = access_token or os.getenv('ACCESS_TOKEN')
+	
 	if not customer_number:
 		raise ValueError("CUSTOMER_NUMBER must be set in .env or passed in")
 	if not billing_id or not billing_name:
@@ -340,9 +343,9 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 		raise ValueError("service_id parameter or SERVICE_ID in .env must be provided.")
 	if not product_code:
 		raise ValueError("product_code parameter or PRODUCT_CODE in .env must be provided.")
-
-	access_token = access_token or get_valid_access_token()
-
+	if not access_token:
+		raise ValueError("ACCESS_TOKEN must be set in .env or passed in")
+	
 	headers = {
 		'x-customer-number': customer_number,
 		'Content-Type': 'application/json',
@@ -446,8 +449,7 @@ def main():
 
 	try:
 		# Ensure access token is available before all steps
-		get_access_token()
-
+		access_token = access_token or get_valid_access_token()
 		# Step 1: Check inventory
 		print("=" * 50)
 		print("Step 1: Checking inventory...")
@@ -483,8 +485,16 @@ def main():
 		print("=" * 50)
 		print("Step 3: Requesting price quote...")
 		print("=" * 50)
-		price_request()
+		quote_id = price_request()
+		print(f"Price quote requested successfully. {quote_id}\n")
 
+		# Step 4: (Optional) Place order based on quote
+		print("=" * 50)
+		print("Step 4: Placing order based on quote...")
+		print("=" * 50)
+		order_request((quote_id))
+		
+		print(f"Order placed successfully based on quote {quote_id}.\n")
 
 	except Exception as e:
 		print(f"Error: {e}")
