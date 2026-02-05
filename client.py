@@ -260,9 +260,6 @@ def price_request():
 	"""
 	Send a price request to the Lumen API using env values and print only the id from the response.
 	"""
-	import requests
-	import json
-	from dotenv import load_dotenv
 	load_dotenv()
 
 	url = f"{base_url}/Product/v1/priceRequest"
