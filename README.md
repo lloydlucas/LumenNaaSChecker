@@ -15,7 +15,7 @@ LumenNaaSChecker is a tool designed to check and validate Network-as-a-Service (
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/LumenNaaSChecker.git
+   git clone https://github.com/lloydlucas/LumenNaaSChecker.git
    ```
 2. Navigate to the project directory:
    ```bash
