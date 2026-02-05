@@ -314,7 +314,7 @@ def price_request():
 	print(data.get('id'))
 
 
-def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_spec_id: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "Change", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
+def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "Change", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
 	"""
 	Place an order request using env variables and a `quote_id` from a previous quote.
 
@@ -331,7 +331,6 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 	billing_name = os.getenv('BILLING_ACCOUNT_NAME')
 	service_id = service_id or os.getenv('SERVICE_ID')
 	product_code = product_code or os.getenv('PRODUCT_CODE')
-	product_spec_id = product_spec_id or os.getenv('PRODUCT_SPEC_ID')
 	product_name = product_name or os.getenv('PRODUCT_NAME')
 	access_token = access_token or os.getenv('ACCESS_TOKEN')
 	
@@ -343,6 +342,8 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 		raise ValueError("service_id parameter or SERVICE_ID in .env must be provided.")
 	if not product_code:
 		raise ValueError("product_code parameter or PRODUCT_CODE in .env must be provided.")
+	if not product_name:
+		raise ValueError("product_name parameter or PRODUCT_NAME in .env must be provided.")
 	if not access_token:
 		raise ValueError("ACCESS_TOKEN must be set in .env or passed in")
 	
@@ -383,14 +384,14 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 		"productOrderItem": [
 			{
 				"id": service_id,
-				"quantity": quantity,
-				"action": action,
+				"quantity": 1,
+				"action": "modify",
 				"product": {
 					"id": service_id,
 					"productCharacteristic": [],
-					"productSpecification": {"id": product_spec_id or "5001", "name": product_name or "NaaS Internet"}
+					"productSpecification": {"id": "5001", "name": "NaaS Internet"}
 				},
-				"productOffering": {"id": product_code, "name": product_name or "Internet On-Demand"}
+				"productOffering": {"id": product_code, "name": product_name}
 			}
 		],
 		"quote": [{"id": quote_id, "name": quote_id}],
@@ -402,15 +403,13 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 	contact_role = os.getenv('CONTACT_ROLE')
 	contact_org = os.getenv('CONTACT_ORG')
 	contact_name = os.getenv('CONTACT_NAME')
-	contact_ext = os.getenv('CONTACT_NUMBER_EXTENSION')
-	if contact_number or contact_email or contact_role or contact_org or contact_name or contact_ext:
+	if contact_number or contact_email or contact_role or contact_role or contact_org or contact_name:
 		related = {
 			"number": contact_number or "",
 			"emailAddress": contact_email or "",
-			"role": contact_role or "",
+			"role": contact_role,
 			"organization": contact_org or "",
 			"name": contact_name or "",
-			"numberExtension": contact_ext or ""
 		}
 		payload["relatedContactInformation"] = [related]
 
@@ -485,8 +484,8 @@ def main():
 		print("=" * 50)
 		print("Step 3: Requesting price quote...")
 		print("=" * 50)
-		quote_id = price_request()
-		print(f"Price quote requested successfully. {quote_id}\n")
+		price_request()
+		print(f"Price quote requested successfully. \n")
 
 		# Step 4: (Optional) Place order based on quote
 		print("=" * 50)
