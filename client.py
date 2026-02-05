@@ -409,11 +409,11 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 	contact_name = os.getenv('CONTACT_NAME')
 	if contact_number or contact_email or contact_role or contact_role or contact_org or contact_name:
 		related = {
-			"number": contact_number or "",
-			"emailAddress": contact_email or "",
+			"number": contact_number,
+			"emailAddress": contact_email,
 			"role": contact_role,
-			"organization": contact_org or "",
-			"name": contact_name or "",
+			"organization": contact_org,
+			"name": contact_name,
 		}
 		payload["relatedContactInformation"] = [related]
 
