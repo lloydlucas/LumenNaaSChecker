@@ -37,7 +37,6 @@ Run the main checker script:
 python main.py
 ```
 
-
 ## Environment Variables
 The following environment variables must be set in a `.env` file in the project root:
 
@@ -62,9 +61,6 @@ The following environment variables must be set in a `.env` file in the project 
 | LUMEN_IP              | Lumen IP address for bandwidth comparison        |
 
 These variables are required for authentication, API requests, and order placement. See the code for additional optional variables.
-
-## Contributing
-Contributions are welcome! Please fork the repository and submit a pull request. For major changes, open an issue first to discuss what you would like to change.
 
 ## License
 This project is licensed under the MIT License.
