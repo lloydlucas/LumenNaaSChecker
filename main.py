@@ -121,7 +121,7 @@ def get_access_token(force: bool = False) -> str:
 	return access_token
 
 
-def is_access_token_expired(buffer_seconds: int = 60) -> bool:
+def is_access_token_expired(buffer_seconds: int = 30) -> bool:
 	"""Return True if the stored access token is missing or will expire within buffer_seconds."""
 	load_dotenv()
 	expires_at = os.getenv('ACCESS_TOKEN_EXPIRES_AT')
@@ -135,7 +135,7 @@ def is_access_token_expired(buffer_seconds: int = 60) -> bool:
 		return True
 
 
-def get_valid_access_token(buffer_seconds: int = 60) -> str:
+def get_valid_access_token(buffer_seconds: int = 30) -> str:
 	"""Return a valid access token, refreshing it if missing/expired."""
 	load_dotenv()
 	token = os.getenv('ACCESS_TOKEN')
@@ -431,7 +431,7 @@ def main():
 	"""
 	try:
 		# Ensure access token is available before all steps
-		get_access_token()
+		get_valid_access_token()
 		# Step 1: Check inventory
 		print("Step 1: Checking inventory...")
 		check_inventory()
