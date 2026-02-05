@@ -274,7 +274,7 @@ def price_request():
 	product_name = os.getenv('PRODUCT_NAME')
 	access_token = os.getenv('ACCESS_TOKEN')
 
-	if not all([customer_number, currency_code, master_site_id, partner_id, quote_bandwidth, access_token]):
+	if not all([customer_number, currency_code, master_site_id, partner_id, quote_bandwidth, product_code, product_name, access_token]):
 		raise ValueError("Missing required environment variables for price request.")
 
 	payload = json.dumps({
