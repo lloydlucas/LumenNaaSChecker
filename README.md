@@ -21,7 +21,7 @@ LumenNaaSChecker is a tool designed to check and validate Network-as-a-Service (
 ## Usage
 Run the main checker script:
 ```bash
-python main.py
+python3 main.py
 ```
 
 ## Environment Variables
