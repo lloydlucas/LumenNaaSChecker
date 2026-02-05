@@ -431,7 +431,7 @@ def main():
 	"""
 	try:
 		# Ensure access token is available before all steps
-		access_token = os.getenv('ACCESS_TOKEN') or get_valid_access_token()
+		access_token = get_access_token()
 		# Step 1: Check inventory
 		print("Step 1: Checking inventory...")
 		check_inventory()
