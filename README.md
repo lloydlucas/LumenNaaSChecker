@@ -17,19 +17,6 @@ LumenNaaSChecker is a tool designed to check and validate Network-as-a-Service (
    ```bash
    git clone https://github.com/lloydlucas/LumenNaaSChecker.git
    ```
-2. Navigate to the project directory:
-   ```bash
-   cd LumenNaaSChecker
-   ```
-3. (Optional) Create and activate a virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-4. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
 
 ## Usage
 Run the main checker script:
