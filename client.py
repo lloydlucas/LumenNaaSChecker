@@ -1,9 +1,10 @@
 import subprocess
 import os
-from dotenv import load_dotenv
 import requests
 import base64
 import time
+import json
+from dotenv import load_dotenv
 
 base_url = "https://api.lumen.com"
 
@@ -317,74 +318,57 @@ def price_request():
 		os.environ['QUOTE_ID'] = quote_id
 	print(quote_id)
 
-
-def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "Change", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
+def order_request():
 	"""
-	Place an order request using env variables and a `quote_id` from a previous quote.
-
-	Required in env (unless provided as args):
-	- CUSTOMER_NUMBER
-	- BILLING_ACCOUNT_ID, BILLING_ACCOUNT_NAME
-	- SERVICE_ID (or pass service_id)
-	- PRODUCT_CODE (or pass product_code)
+	Place an order request using env variables and static values as described.
 	"""
-	load_dotenv()
 
+	url = f"{base_url}/Customer/v3/Ordering/orderRequest"
+	access_token = os.getenv('ACCESS_TOKEN')
 	customer_number = os.getenv('CUSTOMER_NUMBER')
-	billing_id = os.getenv('BILLING_ACCOUNT_ID')
-	billing_name = os.getenv('BILLING_ACCOUNT_NAME')
-	service_id = service_id or os.getenv('SERVICE_ID')
-	product_code = product_code or os.getenv('PRODUCT_CODE')
-	product_name = product_name or os.getenv('PRODUCT_NAME')
-	access_token = access_token or os.getenv('ACCESS_TOKEN')
-	
-	if not customer_number:
-		raise ValueError("CUSTOMER_NUMBER must be set in .env or passed in")
-	if not billing_id or not billing_name:
-		raise ValueError("BILLING_ACCOUNT_ID and BILLING_ACCOUNT_NAME must be set in .env")
-	if not service_id:
-		raise ValueError("service_id parameter or SERVICE_ID in .env must be provided.")
-	if not product_code:
-		raise ValueError("product_code parameter or PRODUCT_CODE in .env must be provided.")
-	if not product_name:
-		raise ValueError("product_name parameter or PRODUCT_NAME in .env must be provided.")
-	if not access_token:
-		raise ValueError("ACCESS_TOKEN must be set in .env or passed in")
-	
-	headers = {
-		'x-customer-number': customer_number,
-		'Content-Type': 'application/json',
-		'Authorization': f'Bearer {access_token}'
-	}
+	billing_account_id = os.getenv('BILLING_ACCOUNT_ID')
+	billing_account_name = os.getenv('BILLING_ACCOUNT_NAME')
+	external_id_prefix = os.getenv('EXTERNAL_ID_PREFIX', 'BLT')
+	quote_id = os.getenv('QUOTE_ID')
+	service_id = os.getenv('SERVICE_ID')
+	product_code = '718'
+	product_name = 'Internet On-Demand'
+	contact_name = os.getenv('CONTACT_NAME')
+	contact_role = os.getenv('CONTACT_ROLE')
+	contact_email = os.getenv('CONTACT_EMAIL')
+	contact_org = os.getenv('CONTACT_ORG')
+	contact_phone = os.getenv('CONTACT_PHONE')
 
-	# build payload
-	# Ensure external_id is limited to 20 characters including prefix from env
-	if external_id:
-		_final_external_id = str(external_id)
+	if not all([access_token, customer_number, billing_account_id, billing_account_name, quote_id, service_id, product_code, product_name]):
+		raise ValueError("Missing required environment variables for order request.")
+
+	# Generate externalId: prefix + unique string, max 20 chars
+	suffix = str(int(time.time()))
+	max_len = 20
+	allowed_suffix_len = max_len - len(external_id_prefix)
+	if allowed_suffix_len <= 0:
+		external_id = external_id_prefix[:max_len]
 	else:
-		prefix = os.getenv('EXTERNAL_ID_PREFIX')
-		suffix = str(int(time.time()))
-		# compute allowed suffix length
-		max_len = 20
-		allowed_suffix_len = max_len - len(prefix)
-		if allowed_suffix_len <= 0:
-			# prefix too long - truncate prefix to max length
-			_final_external_id = prefix[:max_len]
-		else:
-			# use the rightmost part of suffix to keep recent uniqueness
-			_final_external_id = prefix + suffix[-allowed_suffix_len:]
-	# ensure final length safety
-	_final_external_id = _final_external_id[:20]
-	if _final_external_id != (external_id or ''):
-		# update the external_id variable and notify
-		external_id = _final_external_id
-		print(f"Using external_id: {external_id}")
-	# base payload
-	payload = {
+		external_id = external_id_prefix + suffix[-allowed_suffix_len:]
+	external_id = external_id[:20]
+
+	payload = json.dumps({
 		"externalId": external_id,
-		"billingAccount": {"id": billing_id, "name": billing_name},
-		"channel": [{"id": 99, "name": "NaaS ExternalApi"}],
-		"note": [{"text": note_text}],
+		"billingAccount": {
+			"id": billing_account_id,
+			"name": billing_account_name
+		},
+		"channel": [
+			{
+				"id": 99,
+				"name": "NaaS ExternalApi"
+			}
+		],
+		"note": [
+			{
+				"text": "Change"
+			}
+		],
 		"productOrderItem": [
 			{
 				"id": service_id,
@@ -393,46 +377,48 @@ def order_request(quote_id: str, service_id: str = None, product_code: str = Non
 				"product": {
 					"id": service_id,
 					"productCharacteristic": [],
-					"productSpecification": {"id": "5001", "name": "NaaS Internet"}
+					"productSpecification": {
+						"id": "5001",
+						"name": "NaaS Internet"
+					}
 				},
-				"productOffering": {"id": product_code, "name": product_name}
+				"productOffering": {
+					"id": product_code,
+					"name": product_name
+				}
 			}
 		],
-		"quote": [{"id": quote_id, "name": quote_id}],
+		"quote": [
+			{
+				"id": quote_id,
+				"name": quote_id
+			}
+		],
+		"relatedContactInformation": [
+			{
+				"number": contact_phone,
+				"emailAddress": contact_email,
+				"role": contact_role,
+				"organization": contact_org,
+				"name": contact_name,
+				"numberExtension": ""
+			}
+		]
+	})
+	headers = {
+		'x-customer-number': customer_number,
+		'Content-Type': 'application/json',
+		'Authorization': f'Bearer {access_token}'
 	}
 
-	# optional related contact info
-	contact_number = os.getenv('CONTACT_NUMBER')
-	contact_email = os.getenv('CONTACT_EMAIL')
-	contact_role = os.getenv('CONTACT_ROLE')
-	contact_org = os.getenv('CONTACT_ORG')
-	contact_name = os.getenv('CONTACT_NAME')
-	if contact_number or contact_email or contact_role or contact_role or contact_org or contact_name:
-		related = {
-			"number": contact_number,
-			"emailAddress": contact_email,
-			"role": contact_role,
-			"organization": contact_org,
-			"name": contact_name,
-		}
-		payload["relatedContactInformation"] = [related]
-
-	resp = requests.post(url, headers=headers, json=payload)
+	response = requests.post(url, headers=headers, data=payload)
 	try:
-		resp.raise_for_status()
+		response.raise_for_status()
 	except requests.HTTPError:
-		print(f"Order request failed: {resp.status_code} {resp.text}")
+		print(f"Order request failed: {response.status_code} {response.text}")
 		raise
 
-	try:
-		data = resp.json()
-	except ValueError:
-		print(resp.text)
-		return resp.text
-
-	print(f"Order response: {data}")
-	return data
-
+	print(response.text)
 
 def main():
 	"""
@@ -460,20 +446,20 @@ def main():
 		check_inventory()
 		print(f"Inventory check complete.\n")
 
-		# Step 1.5: Set quote bandwidth based on egress IP
+		# Step 2: Set quote bandwidth based on egress IP
 		print("=" * 50)
-		print("Step 1.5: Setting quote bandwidth...")
+		print("Step 2: Setting quote bandwidth...")
 		print("=" * 50)
 		set_quote_bandwidth()
 		print()
 
-		# Step 2: Compare SERVICE_BANDWIDTH with QUOTE_BANDWIDTH
+		# Step 3: Compare SERVICE_BANDWIDTH with QUOTE_BANDWIDTH
 		load_dotenv()
 		quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
 		service_bandwidth = os.getenv('SERVICE_BANDWIDTH')
 
 		print("=" * 50)
-		print("Step 2: Comparing bandwidth values...")
+		print("Step 3: Comparing bandwidth values...")
 		print("=" * 50)
 		print(f"SERVICE_BANDWIDTH: {service_bandwidth}")
 		print(f"QUOTE_BANDWIDTH: {quote_bandwidth}")
@@ -484,20 +470,22 @@ def main():
 
 		print("Bandwidths differ. Requesting price quote...\n")
 
-		# Step 3: Request price quote (only if bandwidths differ)
+
+		# Step 4: Request price quote (only if bandwidths differ)
 		print("=" * 50)
-		print("Step 3: Requesting price quote...")
+		print("Step 4: Requesting price quote...")
 		print("=" * 50)
 		price_request()
 		print(f"Price quote requested successfully. \n")
 
-		# Step 4: (Optional) Place order based on quote
+		# Step 5: Place order based on quote
 		print("=" * 50)
-		print("Step 4: Placing order based on quote...")
+		print("Step 5: Placing order based on quote...")
 		print("=" * 50)
-		quote_id_env = os.getenv('QUOTE_ID')
-		order_request(quote_id_env)
-		print(f"Order placed successfully based on quote {quote_id_env}.\n")
+		order_request()
+		print(f"Order placed successfully based on quote {os.getenv('QUOTE_ID')}.\n")
+
+
 
 	except Exception as e:
 		print(f"Error: {e}")
