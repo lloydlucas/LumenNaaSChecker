@@ -56,7 +56,7 @@ The following environment variables must be set in a `.env` file in the project 
 | CONTACT_EMAIL         | Contact email for order requests                 |
 | CONTACT_ORG           | Contact organization for order requests          |
 | CONTACT_PHONE         | Contact phone number for order requests          |
-| BANDWIDTH_FULL        | Bandwidth value for full access (e.g., 1 mbps)   |
+| BANDWIDTH_FULL        | Bandwidth value for full access (e.g., 100 mbps) |
 | BANDWIDTH_HEARTBEAT   | Bandwidth value for heartbeat (e.g., 1 mbps)     |
 | LUMEN_IP              | Lumen IP address for bandwidth comparison        |
 
