@@ -311,7 +311,11 @@ def price_request():
 		print(response.text)
 		return
 
-	print(data.get('id'))
+	quote_id = data.get('id')
+	if quote_id:
+		_update_env_file({'QUOTE_ID': quote_id})
+		os.environ['QUOTE_ID'] = quote_id
+	print(quote_id)
 
 
 def order_request(quote_id: str, service_id: str = None, product_code: str = None, product_name: str = None, quantity: int = 1, action: str = "modify", external_id: str = None, note_text: str = "Change", access_token: str = None, url: str = f"{base_url}/Customer/v3/Ordering/orderRequest"):
@@ -491,9 +495,9 @@ def main():
 		print("=" * 50)
 		print("Step 4: Placing order based on quote...")
 		print("=" * 50)
-		order_request((quote_id))
-		
-		print(f"Order placed successfully based on quote {quote_id}.\n")
+		quote_id_env = os.getenv('QUOTE_ID')
+		order_request(quote_id_env)
+		print(f"Order placed successfully based on quote {quote_id_env}.\n")
 
 	except Exception as e:
 		print(f"Error: {e}")
