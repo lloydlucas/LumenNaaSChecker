@@ -483,17 +483,8 @@ def main():
 		print("=" * 50)
 		print("Step 3: Requesting price quote...")
 		print("=" * 50)
-		quote = price_request(
-			product_code=os.getenv('PRODUCT_CODE'),
-			product_name=os.getenv('PRODUCT_NAME'),
-			bandwidth=service_bandwidth
-		)
-		quote_id = quote.get('quoteId') or quote.get('id')
-		print(f"Quote created. Quote ID: {quote_id}\n")
+		price_request()
 
-		print("=" * 50)
-		print("Workflow complete!")
-		print("=" * 50)
 
 	except Exception as e:
 		print(f"Error: {e}")
@@ -503,4 +494,5 @@ def main():
 
 
 if __name__ == '__main__':
+	
 	exit(main())
