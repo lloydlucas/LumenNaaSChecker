@@ -322,7 +322,7 @@ def order_request():
 	customer_number = os.getenv('CUSTOMER_NUMBER')
 	billing_account_id = os.getenv('BILLING_ACCOUNT_ID')
 	billing_account_name = os.getenv('BILLING_ACCOUNT_NAME')
-	external_id_prefix = os.getenv('EXTERNAL_ID_PREFIX', 'BLT')
+	external_id_prefix = os.getenv('EXTERNAL_ID_PREFIX')
 	quote_id = os.getenv('QUOTE_ID')
 	service_id = os.getenv('SERVICE_ID')
 	product_code = '718'
