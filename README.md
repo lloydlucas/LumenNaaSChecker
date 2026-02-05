@@ -27,25 +27,25 @@ python3 main.py
 ## Environment Variables
 The following environment variables must be set in a `.env` file in the project root:
 
-| Variable              | Description                                       |
-|-----------------------|---------------------------------------------------|
-| USERNAME              | OAuth username for Lumen API                      |
-| SECRET                | OAuth secret for Lumen API                        |
-| CUSTOMER_NUMBER       | Your Lumen customer number                        |
-| SERVICE_ID            | The service ID to check inventory for             |
-| CURRENCY_CODE         | Currency code (e.g., USD)                         |
-| PARTNER_ID            | Lumen partner ID                                  |
-| PRODUCT_CODE          | Product code (e.g., 718)                          |
-| PRODUCT_NAME          | Product name (e.g., Internet On-Demand)           |
-| EXTERNAL_ID_PREFIX    | Prefix for external order IDs                     |
-| CONTACT_NAME          | Contact name for order requests                   |
-| CONTACT_ROLE          | Contact role for order requests                   |
-| CONTACT_EMAIL         | Contact email for order requests                  |
-| CONTACT_ORG           | Contact organization for order requests           |
-| CONTACT_PHONE         | Contact phone number for order requests           |
-| BANDWIDTH_FULL        | Bandwidth value for full access (e.g., 1000 mbps) |
-| BANDWIDTH_HEARTBEAT   | Bandwidth value for heartbeat (e.g., 1 mbps)      |
-| LUMEN_IP              | Lumen IP address for bandwidth comparison         |
+| Variable              | Description                                           |
+|-----------------------|-------------------------------------------------------|
+| USERNAME              | OAuth username for Lumen API                          |
+| SECRET                | OAuth secret for Lumen API                            |
+| CUSTOMER_NUMBER       | Your Lumen customer number                            |
+| SERVICE_ID            | The service ID to check inventory for                 |
+| CURRENCY_CODE         | Currency code (e.g., USD)                             |
+| PARTNER_ID            | Lumen partner ID                                      |
+| PRODUCT_CODE          | Product code (e.g., 718)                              |
+| PRODUCT_NAME          | Product name (e.g., Internet On-Demand)               |
+| EXTERNAL_ID_PREFIX    | Prefix for external order IDs                         |
+| CONTACT_NAME          | Contact name for order requests                       |
+| CONTACT_ROLE          | Contact role for order requests (e.g., Order Contact) |
+| CONTACT_EMAIL         | Contact email for order requests                      |
+| CONTACT_ORG           | Contact organization for order requests               |
+| CONTACT_PHONE         | Contact phone number for order requests               |
+| BANDWIDTH_FULL        | Bandwidth value for full access (e.g., 1000 mbps)     |
+| BANDWIDTH_HEARTBEAT   | Bandwidth value for heartbeat (e.g., 1 mbps)          |
+| LUMEN_IP              | Lumen IP address for bandwidth comparison             |
 
 These variables are required for authentication, API requests, and order placement. See the code for additional optional variables.
 

@@ -429,21 +429,16 @@ def main():
 	- PRODUCT_CODE, PRODUCT_NAME (for quoting)
 	- QUOTE_BANDWIDTH (set via set_quote_bandwidth())
 	"""
-
 	try:
 		# Ensure access token is available before all steps
 		access_token = os.getenv('ACCESS_TOKEN') or get_valid_access_token()
 		# Step 1: Check inventory
-		print("=" * 50)
 		print("Step 1: Checking inventory...")
-		print("=" * 50)
 		check_inventory()
 		print(f"Inventory check complete.\n")
 
 		# Step 2: Set quote bandwidth based on egress IP
-		print("=" * 50)
 		print("Step 2: Setting quote bandwidth...")
-		print("=" * 50)
 		set_quote_bandwidth()
 		print()
 
@@ -452,11 +447,7 @@ def main():
 		quote_bandwidth = os.getenv('QUOTE_BANDWIDTH')
 		service_bandwidth = os.getenv('SERVICE_BANDWIDTH')
 
-		print("=" * 50)
-		print("Step 3: Comparing bandwidth values...")
-		print("=" * 50)
-		print(f"SERVICE_BANDWIDTH: {service_bandwidth}")
-		print(f"QUOTE_BANDWIDTH: {quote_bandwidth}")
+		print(f"Step 3: Comparing bandwidth values: SERVICE_BANDWIDTH: {service_bandwidth}, QUOTE_BANDWIDTH: {quote_bandwidth}")
 
 		if service_bandwidth == quote_bandwidth:
 			print("Bandwidths match. No quote needed.\n")
@@ -464,29 +455,21 @@ def main():
 
 		print("Bandwidths differ. Requesting price quote...\n")
 
-
 		# Step 4: Request price quote (only if bandwidths differ)
-		print("=" * 50)
 		print("Step 4: Requesting price quote...")
-		print("=" * 50)
 		price_request()
 		print(f"Price quote requested successfully. \n")
 
 		# Step 5: Place order based on quote
-		print("=" * 50)
 		print("Step 5: Placing order based on quote...")
-		print("=" * 50)
 		order_request()
 		print(f"Order placed successfully based on quote {os.getenv('QUOTE_ID')}.\n")
-
-
 
 	except Exception as e:
 		print(f"Error: {e}")
 		return 1
 
 	return 0
-
 
 if __name__ == '__main__':
 	
