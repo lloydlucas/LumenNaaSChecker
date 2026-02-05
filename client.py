@@ -63,9 +63,6 @@ def _update_env_file(updates: dict) -> None:
 		f.writelines(out_lines)
 
 
-
-
-
 def get_access_token(force: bool = False) -> str:
 	"""
 	Return a valid access token.
