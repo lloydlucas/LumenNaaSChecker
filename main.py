@@ -6,8 +6,6 @@ import time
 import json
 from dotenv import load_dotenv
 
-#Rohan Sucks
-
 base_url = "https://api.lumen.com"
 
 def get_egress_ip():
